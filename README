@@ -1,2 +1,16 @@
 Proof of concept converter from the Broad Institute's Workflow Definition
 Language (WDL) to the Common Workflow Language.
+
+References:
+
+CWL spec
+https://github.com/common-workflow-language/common-workflow-language
+
+WDL spec
+https://github.com/broadinstitute/wdl
+
+Python WDL parser
+https://github.com/broadinstitute/pywdl
+
+cwl2wdl (convert the other way)
+https://github.com/adamstruck/cwl2wdl
