@@ -1,14 +1,16 @@
-import wdl.parser
 import json
-import sys
-import cwltool.factory
 import logging
+import sys
+
+import cwltool.factory
+import wdl.parser
 
 handlers = {}
 
 typemap = {"Int": "int",
            "File": "File",
            "String": "string"}
+
 
 def ihandle(i, **kw):
     if isinstance(i, wdl.parser.Terminal):
@@ -32,9 +34,10 @@ def ihandle(i, **kw):
             else:
                 return i.source_string
         else:
-            raise Exception("Unknown terminal '%s'" % i.str )
+            raise Exception("Unknown terminal '%s'" % i.str)
     else:
         return handlers[i.name](i, **kw)
+
 
 def handleDocument(item, **kwargs):
     defs = []
@@ -44,8 +47,10 @@ def handleDocument(item, **kwargs):
         defs.append(ihandle(i, **kwargs))
     return defs
 
+
 def handleImport(item, **kwargs):
     print("import")
+
 
 def handleTask(item, **kwargs):
     tool = {"id": ihandle(item.attr("name"), **kwargs),
@@ -53,11 +58,11 @@ def handleTask(item, **kwargs):
             "baseCommand": [],
             "requirements": [
                 {"class": "ShellCommandRequirement"}
-             ]}
+            ]}
     tool["inputs"] = []
     tool["outputs"] = []
 
-    filevars=kwargs.get("filevars", set())
+    filevars = kwargs.get("filevars", set())
     for i in item.attr("declarations"):
         tool["inputs"].append(ihandle(i, context=tool,
                                       assignments=kwargs.get("assignments", {}),
@@ -68,6 +73,7 @@ def handleTask(item, **kwargs):
                 filevars=filevars, **kwargs)
 
     return tool
+
 
 def handleWorkflow(item, **kwargs):
     wf = {"id": ihandle(item.attr("name")),
@@ -91,6 +97,7 @@ def handleWorkflow(item, **kwargs):
             wf["outputs"].append(ihandle(i, **kwargs))
     return wf
 
+
 def handleDeclaration(item, context=None, assignments=None, filevars=None, **kwargs):
     assignments[ihandle(item.attr("name"))] = "#%s/%s" % (context["id"], ihandle(item.attr("name")))
     if ihandle(item.attr("type")) == "File":
@@ -98,11 +105,13 @@ def handleDeclaration(item, context=None, assignments=None, filevars=None, **kwa
     return {"id": ihandle(item.attr("name"), **kwargs),
             "type": ihandle(item.attr("type"), **kwargs)}
 
+
 def handleRawCommand(item, context=None, **kwargs):
     s = ""
     for p in item.attr("parts"):
         s += ihandle(p, **kwargs)
     context["arguments"] = [{"valueFrom": s, "shellQuote": False}]
+
 
 def handleOutputs(item, context=None, **kwargs):
     for a in item.attr("attributes"):
@@ -119,6 +128,7 @@ def handleOutputs(item, context=None, **kwargs):
             out["outputBinding"]["outputEval"] = "$(" + e + ")"
         context["outputs"].append(out)
 
+
 def handleFunctionCall(item, **kwargs):
     if ihandle(item.attr("name")) == "stdout":
         kwargs["tool"]["stdout"] = "__stdout"
@@ -134,8 +144,10 @@ def handleFunctionCall(item, **kwargs):
         raise Exception("Unknown function '%s'" % ihandle(item.attr("name")))
     pass
 
+
 def handleCommandParameter(item, context=None, **kwargs):
     return "$(" + ihandle(item.attr("expr"), in_expression=True, depends_on=set(), **kwargs) + ")"
+
 
 def handleCall(item, context=None, assignments=None, **kwargs):
     if item.attr("alias") is not None:
@@ -170,26 +182,32 @@ def handleCall(item, context=None, assignments=None, **kwargs):
             step["inputs"].append({
                 "id": taskinp["id"],
                 "source": "#%s/%s" % (context["id"], newinp)
-                })
+            })
 
     return step
+
 
 def handleCallBody(item, **kwargs):
     for i in item.attr("io"):
         ihandle(i, **kwargs)
 
+
 def handleWorkflowOutputs(item, **kwargs):
     pass
+
 
 def handleInputs(item, **kwargs):
     for m in item.attr("map"):
         ihandle(m, **kwargs)
 
+
 def handleMultiply(ex, **kwargs):
     return ihandle(ex.attr("lhs"), **kwargs) + " * " + ihandle(ex.attr("rhs"), **kwargs)
 
+
 def handleAdd(ex, **kwargs):
     return ihandle(ex.attr("lhs"), **kwargs) + " + " + ihandle(ex.attr("rhs"), **kwargs)
+
 
 def handleMemberAccess(item, **kwargs):
     mem = ihandle(item.attr("value").attr("lhs"), **kwargs) + "." + ihandle(item.attr("value").attr("rhs"), **kwargs)
@@ -198,11 +216,12 @@ def handleMemberAccess(item, **kwargs):
         mem = mem + ".path"
     return mem
 
+
 def handleIOMapping(item, context=None, assignments=None, filevars=None, **kwargs):
     mp = {"id": ihandle(item.attr("key"))}
     if (item.attr("value").name in ("MemberAccess") and
-        item.attr("value").attr("lhs").str == "identifier" and
-        item.attr("value").attr("rhs").str == "identifier"):
+                item.attr("value").attr("lhs").str == "identifier" and
+                item.attr("value").attr("rhs").str == "identifier"):
         mp["source"] = assignments["%s.%s" % (ihandle(item.attr("value").attr("lhs")),
                                               ihandle(item.attr("value").attr("rhs")))]
     else:
@@ -216,8 +235,9 @@ def handleIOMapping(item, context=None, assignments=None, filevars=None, **kwarg
 
     context["inputs"].append(mp)
 
+
 m = sys.modules[__name__]
-for k,v in m.__dict__.items():
+for k, v in m.__dict__.items():
     if k.startswith("handle"):
         handlers[k[6:]] = v
 
@@ -295,6 +315,7 @@ workflow three_step {
 
 factory = cwltool.factory.Factory()
 
+
 def printstuff(wdl_code):
     # Parse source code into abstract syntax tree
     ast = wdl.parser.parse(wdl_code).ast()
@@ -326,9 +347,9 @@ def printstuff(wdl_code):
     logging.getLogger("cwltool").setLevel(logging.DEBUG)
 
     f = factory.make(cwl, frag="http://wdl#" + lastwf, debug=True)
-    print f(cgrep_pattern="python")
+    print(f(cgrep_pattern="python"))
 
 
-#printstuff(wdl_code)
-#printstuff(wdl_code2)
+# printstuff(wdl_code)
+# printstuff(wdl_code2)
 printstuff(wdl_code3)
