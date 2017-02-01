@@ -1,4 +1,4 @@
-Proof of concept converter from the Broad Institute's Workflow Definition
+Converter from the Broad Institute's Workflow Definition
 Language (WDL) to the Common Workflow Language.
 
 References:
@@ -14,3 +14,11 @@ https://github.com/broadinstitute/pywdl
 
 cwl2wdl (convert the other way)
 https://github.com/adamstruck/cwl2wdl
+
+======================
+Runtime (WDL)
+docker [] -> DockerRequirement, only one image
+resources -> ResourceRequirement, megabytes -> mebibytes string
+
+If the output {...} section is omitted, then the workflow includes
+all outputs from all calls in its final output.

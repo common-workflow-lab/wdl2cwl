@@ -1,15 +1,21 @@
+from __future__ import print_function
+
+import argparse
 import json
-import logging
+import os
 import sys
 
-import cwltool.factory
 import wdl.parser
+from jinja2 import Environment, FileSystemLoader
+
+from wdl2cwl import __version__
 
 handlers = {}
 
 typemap = {"Int": "int",
            "File": "File",
-           "String": "string"}
+           "String": "string",
+           "Array": "array"}
 
 
 def ihandle(i, **kw):
@@ -34,7 +40,7 @@ def ihandle(i, **kw):
             else:
                 return i.source_string
         else:
-            raise Exception("Unknown terminal '%s'" % i.str)
+            raise NotImplementedError("Unknown terminal '%s'" % i.str)
     else:
         return handlers[i.name](i, **kw)
 
@@ -49,18 +55,17 @@ def handleDocument(item, **kwargs):
 
 
 def handleImport(item, **kwargs):
-    print("import")
+    raise NotImplementedError('Import not implemented')
 
 
 def handleTask(item, **kwargs):
     tool = {"id": ihandle(item.attr("name"), **kwargs),
             "class": "CommandLineTool",
+            "cwlVersion": "v1.0",
             "baseCommand": [],
-            "requirements": [
-                {"class": "ShellCommandRequirement"}
-            ]}
-    tool["inputs"] = []
-    tool["outputs"] = []
+            "requirements": [{"class": "ShellCommandRequirement"}],
+            "inputs": [],
+            "outputs": []}
 
     filevars = kwargs.get("filevars", set())
     for i in item.attr("declarations"):
@@ -78,6 +83,7 @@ def handleTask(item, **kwargs):
 def handleWorkflow(item, **kwargs):
     wf = {"id": ihandle(item.attr("name")),
           "class": "Workflow",
+          "cwlVersion": "v1.0",
           "inputs": [],
           "outputs": [],
           "requirements": [
@@ -90,20 +96,57 @@ def handleWorkflow(item, **kwargs):
         if i.name == "Call":
             wf["steps"].append(ihandle(i, context=wf, assignments=assignments,
                                        filevars=filevars, **kwargs))
-        if i.name == "Declaration":
+        elif i.name == "Declaration":
             wf["inputs"].append(ihandle(i, context=wf, assignments=assignments,
                                         filevars=filevars, **kwargs))
-        if i.name == "WorkflowOutput":
+        elif i.name == "WorkflowOutput":
             wf["outputs"].append(ihandle(i, **kwargs))
+        elif i.name == "Scatter":
+            wf["steps"].extend(ihandle(i, context=wf, assignments=assignments,
+                                       filevars=filevars, **kwargs))
+        else:
+            raise NotImplementedError
     return wf
 
 
+def handleRuntime(item, **kwargs):
+    for runtimeRequirement in item.attr('map'):
+        key = ihandle(runtimeRequirement.attr('key'))
+        if key == 'docker':
+            value = ihandle(runtimeRequirement.attr('value'))
+            if type(value) is list:
+                value = value[0]  # if there are several Docker images, pick the first one (due to CWL restrictions)
+            kwargs['context']['requirements'].append({
+                'class': 'DockerRequirement',
+                'dockerPull': strip_special_ch(value)
+            })
+        elif key == 'memory':
+            # TODO: discuss, different measure units: megabytes (wdl) vs. mebibytes (cwl)
+            kwargs['context']['requirements'].append({
+                'class': 'ResourceRequirement',
+                'ramMin': strip_special_ch(ihandle(runtimeRequirement.attr('value')))
+            })
+
+
+def handleType(item, **kwargs):
+    param_type = ihandle(item.attr('name'))
+    subtype = ihandle(item.attr('subtype')[0])
+    return {'type': param_type,
+            'items': subtype}
+
+
+def strip_special_ch(string):
+    return string.strip('"\'')
+
+
 def handleDeclaration(item, context=None, assignments=None, filevars=None, **kwargs):
-    assignments[ihandle(item.attr("name"))] = "#%s/%s" % (context["id"], ihandle(item.attr("name")))
-    if ihandle(item.attr("type")) == "File":
-        filevars.add(ihandle(item.attr("name"), **kwargs))
-    return {"id": ihandle(item.attr("name"), **kwargs),
-            "type": ihandle(item.attr("type"), **kwargs)}
+    param_id = ihandle(item.attr("name"))
+    param_type = ihandle(item.attr("type"))
+    assignments[param_id] = "#%s/%s" % (context["id"], param_id)
+    if param_type == "File":
+        filevars.add(param_id, **kwargs)
+    return {"id": param_id,
+            "type": param_type}
 
 
 def handleRawCommand(item, context=None, **kwargs):
@@ -115,7 +158,7 @@ def handleRawCommand(item, context=None, **kwargs):
 
 def handleOutputs(item, context=None, **kwargs):
     for a in item.attr("attributes"):
-        out = {"id": ihandle(a.attr("var")),
+        out = {"id": ihandle(a.attr("name")),
                "type": ihandle(a.attr("type")),
                "outputBinding": {}}
         e = ihandle(a.attr("expression"),
@@ -134,14 +177,17 @@ def handleFunctionCall(item, **kwargs):
         kwargs["tool"]["stdout"] = "__stdout"
         kwargs["outputs"]["outputBinding"]["glob"] = "__stdout"
         return "self[0]"
-    if ihandle(item.attr("name")) == "read_int":
+    elif ihandle(item.attr("name")) == "read_int":
         kwargs["outputs"]["outputBinding"]["loadContents"] = True
         return "parseInt(" + ihandle(item.attr("params")[0], **kwargs) + ".contents)"
-    if ihandle(item.attr("name")) == "read_string":
+    elif ihandle(item.attr("name")) == "read_string":
         kwargs["outputs"]["outputBinding"]["loadContents"] = True
         return ihandle(item.attr("params")[0], **kwargs) + ".contents"
+    elif ihandle(item.attr("name")) == "read_tsv":
+        raise NotImplementedError
+    # TODO: a lot of other function calls:
     else:
-        raise Exception("Unknown function '%s'" % ihandle(item.attr("name")))
+        raise NotImplementedError("Unknown function '%s'" % ihandle(item.attr("name")))
     pass
 
 
@@ -156,12 +202,12 @@ def handleCall(item, context=None, assignments=None, **kwargs):
         stepid = ihandle(item.attr("task"))[1:]
 
     step = {"id": stepid,
-            "inputs": [],
-            "outputs": [],
-            "run": ihandle(item.attr("task"))}
+            "in": [],
+            "out": [],
+            "run": ihandle(item.attr("task")).strip('#') + '.cwl'}
 
     for out in kwargs["tasks"][ihandle(item.attr("task"))[1:]]["outputs"]:
-        step["outputs"].append({"id": out["id"]})
+        step["out"].append({"id": out["id"]})
         mem = "%s.%s" % (stepid, out["id"])
         assignments[mem] = "#%s/%s/%s" % (context["id"], stepid, out["id"])
         if out["type"] == "File":
@@ -172,16 +218,16 @@ def handleCall(item, context=None, assignments=None, **kwargs):
         ihandle(b, context=step, assignments=assignments, **kwargs)
 
     for taskinp in kwargs["tasks"][ihandle(item.attr("task"))[1:]]["inputs"]:
-        f = [stepinp for stepinp in step["inputs"] if stepinp["id"] == taskinp["id"]]
+        f = [stepinp for stepinp in step["in"] if stepinp["id"] == taskinp["id"]]
         if not f and taskinp.get("default") is None:
             newinp = "%s_%s" % (stepid, taskinp["id"])
             context["inputs"].append({
                 "id": newinp,
                 "type": taskinp["type"]
             })
-            step["inputs"].append({
+            step["in"].append({
                 "id": taskinp["id"],
-                "source": "#%s/%s" % (context["id"], newinp)
+                "source": "%s" % (newinp)
             })
 
     return step
@@ -192,8 +238,55 @@ def handleCallBody(item, **kwargs):
         ihandle(i, **kwargs)
 
 
+def handleScatter(item, **kwargs):
+    kwargs['context']['requirements'].append({'class': 'ScatterFeatureRequirement'})
+    # TODO: smart scattering (over subworkflows rather than individual steps)
+    steps = []
+
+    for task in item.attr('body'):
+        tool_name = ihandle(task.attr("task")).strip('#')
+        alias = task.attr("alias")
+        if alias is not None:
+            stepid = ihandle(alias)
+        else:
+            stepid = tool_name
+        # TODO: handle declarations inside steps (?)
+        step = {"id": stepid,
+                "in": [],
+                "out": [],
+                "run": tool_name + '.cwl'}
+        scatter_var = ihandle(task.attr('body').attr('io')[0].attr('map')[0].attr('key'))
+        step.update({"scatter": scatter_var})
+        for out in kwargs["tasks"][tool_name]["outputs"]:
+            step["out"].append({"id": out["id"]})
+        """
+        inputs
+        outputs
+        expression tools
+
+        b = task.attr("body")
+        if b is not None:
+            ihandle(b, context=step, assignments=assignments, **kwargs)
+    
+        for taskinp in kwargs["tasks"][ihandle(task.attr("task"))[1:]]["inputs"]:
+            f = [stepinp for stepinp in step["in"] if stepinp["id"] == taskinp["id"]]
+            if not f and taskinp.get("default") is None:
+                newinp = "%s_%s" % (stepid, taskinp["id"])
+                context["inputs"].append({
+                    "id": newinp,
+                    "type": taskinp["type"]
+                })
+                step["in"].append({
+                    "id": taskinp["id"],
+                    "source": "%s" % (newinp)
+                })
+        """
+        steps.append(step)
+    return steps
+
+
 def handleWorkflowOutputs(item, **kwargs):
-    pass
+    raise NotImplementedError
 
 
 def handleInputs(item, **kwargs):
@@ -237,91 +330,25 @@ def handleIOMapping(item, context=None, assignments=None, filevars=None, **kwarg
 
 
 m = sys.modules[__name__]
-for k, v in m.__dict__.items():
+for k, v in m.__dict__.copy().items():
     if k.startswith("handle"):
         handlers[k[6:]] = v
 
-wdl_code = """
-task my_task {
-  File file
-  command {
-    ./my_binary --input=${file} > results
-  }
-  output {
-    File results = "results"
-  }
-}
+# factory = cwltool.factory.Factory()
 
-workflow my_wf {
-  call my_task
-}
-"""
-
-wdl_code2 = """
-task my_task {
-  command {
-    true
-  }
-}
-workflow test {
-  Int a = (1 + 2) * 3
-  call my_task {
-    input: var=a*2, var2="file"+".txt"
-  }
-}
-"""
-
-wdl_code3 = """
-task ps {
-  command {
-    ps
-  }
-  output {
-    File procs = stdout()
-  }
-}
-
-task cgrep {
-  String pattern
-  File in_file
-  command {
-    grep '${pattern}' ${in_file} | wc -l
-  }
-  output {
-    Int count = read_int(stdout())
-  }
-}
-
-task wc {
-  File in_file
-  command {
-    cat ${in_file} | wc -l
-  }
-  output {
-    Int count = read_int(stdout())
-  }
-}
-
-workflow three_step {
-  call ps
-  call cgrep {
-    input: in_file=ps.procs
-  }
-  call wc {
-    input: in_file=ps.procs
-  }
-}
-"""
-
-factory = cwltool.factory.Factory()
+env = Environment(
+    loader=FileSystemLoader(os.path.abspath(os.path.join(os.path.dirname(__file__), 'templates'))),
+    trim_blocks=True,
+    lstrip_blocks=True)
+main_template = env.get_template('cwltool.j2')
 
 
-def printstuff(wdl_code):
+def printstuff(wdl_code, directory=os.getcwd()):
     # Parse source code into abstract syntax tree
     ast = wdl.parser.parse(wdl_code).ast()
-
+    # ast = AST()
     # Print out abstract syntax tree
-    print(ast.dumps(indent=2))
+    # print(ast.dumps(indent=2))
 
     cwl = []
     tasks = {}
@@ -330,26 +357,54 @@ def printstuff(wdl_code):
     task_asts = wdl.find_asts(ast, 'Task')
     for task_ast in task_asts:
         a = ihandle(task_ast)
-        cwl.append(a)
+        # cwl.append(a)
+        export_tool(a, directory)
         tasks[ihandle(task_ast.attr("name"))] = a
 
     # Find all 'Workflow' ASTs
     workflow_asts = wdl.find_asts(ast, 'Workflow')
-    lastwf = None
+    # lastwf = None
     for workflow_ast in workflow_asts:
-        cwl.append(ihandle(workflow_ast, tasks=tasks))
-        lastwf = workflow_ast.attr("name").source_string
+        wf = ihandle(workflow_ast, tasks=tasks)
+        export_tool(wf, directory)
+        # lastwf = workflow_ast.attr("name").source_string
 
     cwl = {"$graph": cwl, "id": "", "$base": "http://wdl"}
 
     print(json.dumps(cwl, indent=4))
 
-    logging.getLogger("cwltool").setLevel(logging.DEBUG)
+    main_template.render()
+    # f = factory.make(cwl)
+    # print(f(cgrep_pattern="python"))
 
-    f = factory.make(cwl, frag="http://wdl#" + lastwf, debug=True)
-    print(f(cgrep_pattern="python"))
+
+def export_tool(tool, directory):
+    print(json.dumps(tool, indent=4))
+    data = main_template.render(version=__version__,
+                                code=json.dumps(tool, indent=4))
+    filename = '{0}.cwl'.format(tool['id'])
+    filename = os.path.join(directory, filename)
+    with open(filename, 'w') as f:
+        f.write(data)
 
 
-# printstuff(wdl_code)
-# printstuff(wdl_code2)
-printstuff(wdl_code3)
+def process_file(file):
+    with open(file) as f:
+        k = f.read()
+    k.replace('\n', '')
+    directory = os.path.basename(os.path.abspath(file)).replace('.wdl', '')
+    os.mkdir(directory)
+    printstuff(k, directory)
+
+
+def main():
+    parser = argparse.ArgumentParser(description='Convert a WDL workflow to CWL')
+    parser.add_argument('workflow', help='a WDL workflow')
+    # TODO: directory to store CWL files
+    # TODO:
+    args = parser.parse_args()
+    process_file(args.workflow)
+
+
+if __name__ == '__main__':
+    main()
