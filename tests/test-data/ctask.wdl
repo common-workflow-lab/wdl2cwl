@@ -12,9 +12,10 @@ workflow count_lines4_wf {
   File inputSamplesFile
   Array[Array[File]] inputSamples = read_tsv(inputSamplesFile)  
   Array[File] files = inputSamples[0]
-  scatter(f in inputSamples[0]) {
+  scatter(f in files) {
     call wc2_tool {
-      input: file1=f
+      input: file1=f,
+        RefFasta=f
     }
   }
   output {

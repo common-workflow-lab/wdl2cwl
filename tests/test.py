@@ -11,7 +11,6 @@ class ValidateTestCase(unittest.TestCase):
             for tool in os.listdir(self.test_dir+toolkit):
                 # TODO: rewrite universally
                 path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '{0}{1}/{2}'.format(self.test_dir, toolkit, tool))
-                print(os.getcwd())
                 try:
                     result = subprocess.check_output(['/usr/local/bin/cwltool', '--validate', '{0}'.format(path)])
                 except subprocess.CalledProcessError as e:

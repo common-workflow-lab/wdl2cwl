@@ -12,7 +12,8 @@ workflow count_lines4_wf {
   Array[File] files
   scatter(f in files) {
     call wc2_tool {
-      input: file1=f
+      input: file1=f,
+        RefFasta=f
     }
   }
   output {
