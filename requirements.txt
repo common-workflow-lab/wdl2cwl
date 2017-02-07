@@ -1,0 +1,4 @@
+future
+jinja2
+# official broadinstitute/pywdl is outdated and doesn't support latest wdl specification
+[-e] git://github.com/anton-khodak/pywdl#egg=pywdl
