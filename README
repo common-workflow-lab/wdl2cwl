@@ -1,4 +1,4 @@
-Proof of concept converter from the Broad Institute's Workflow Definition
+Converter from the Broad Institute's Workflow Definition
 Language (WDL) to the Common Workflow Language.
 
 References:
@@ -14,3 +14,27 @@ https://github.com/broadinstitute/pywdl
 
 cwl2wdl (convert the other way)
 https://github.com/adamstruck/cwl2wdl
+
+wdl2cwl is being actively developed! Please report bugs
+==============================
+NOTES ON AUTOCONVERTING
+
+Runtime (WDL)
+docker [] -> DockerRequirement, only one image
+resources -> ResourceRequirement, megabytes -> mebibytes string
+
+If the output {...} section is omitted, then the workflow includes
+all outputs from all calls in its final output.
+
+
+secondaryFiles
+- .fai
+- ^.dict
+
+resource and docker requirements: megabytes vs mebibytes
+
+read_X() functions:
+if an input parameter is read from a file by a function like read_tsv or read_csv, it must start with a backslash.
+wdl2cwl has to transform file inputs in plain strings to a CWL File object.
+wdl2cwl only recognizes a filepath in a .txt file if it starts with a backslash. Moreover, all strings starting with '/'
+will be treated as filepathes.

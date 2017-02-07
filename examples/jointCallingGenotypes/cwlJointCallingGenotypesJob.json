@@ -1,0 +1,23 @@
+{
+    "inputSamplesFile": {
+        "class": "File",
+        "path": "/media/anton/ECFA959BFA95631E/Programming/experiments/jointCallingGenotypes/jointCallingGenotypes/inputs/inputsTSV.txt"
+    },
+    "refFasta": {
+        "class": "File",
+        "path": "/media/anton/ECFA959BFA95631E/Programming/experiments/jointCallingGenotypes/jointCallingGenotypes/ref/human_g1k_b37_20.fasta"
+    },
+    "gatk": {
+        "class": "File",
+        "path": "/media/anton/ECFA959BFA95631E/Programming/experiments/jointCallingGenotypes/jointCallingGenotypes/GenomeAnalysisTK-3.7/GenomeAnalysisTK.jar"
+    },
+    "refDict":
+    {
+        "class": "File",
+        "path": "/media/anton/ECFA959BFA95631E/Programming/experiments/jointCallingGenotypes/jointCallingGenotypes/ref/human_g1k_b37_20.dict"
+    },
+     "refIndex":     {
+        "class": "File",
+        "path": "/media/anton/ECFA959BFA95631E/Programming/experiments/jointCallingGenotypes/jointCallingGenotypes/ref/human_g1k_b37_20.fasta.fai"
+    }
+}
