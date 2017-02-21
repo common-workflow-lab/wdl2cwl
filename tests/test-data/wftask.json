@@ -1,0 +1,16 @@
+{
+    "inputSamplesFiles": [
+        {
+            "class": "File",
+            "path": "/media/anton/ECFA959BFA95631E/Programming/experiments/inputSamples.txt"
+        },
+        {
+            "class": "File",
+            "path": "/media/anton/ECFA959BFA95631E/Programming/experiments/example.txt"
+        },
+        {
+            "class": "File",
+            "path": "/media/anton/ECFA959BFA95631E/Programming/experiments/example.txt"
+        }
+    ]
+}
