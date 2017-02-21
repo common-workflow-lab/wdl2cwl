@@ -15,13 +15,16 @@ wdl2cwl depends on the fork of [pywdl](https://github.com/anton-khodak/pywdl), s
 
 Pass a wdl workflow or a directory with wdl files to wdl2cwl
 
-```wdl2cwl workflow.wdl```
+```wdl2cwl <workflow.wdl> | <directory> [options]```
 
 By default, a directory with a name of the wdl file will be created and all generated CWL files will be placed in that directory.
 
 Additional options
+
 `'-d', '--directory'` - Target directory to place CWL files
+
 `'-q', '--quiet'` - Do not print generated tools to stdout
+
 `--no-folder` - Do not create a separate folder for each CWL toolset (convenient whilst bulk conversion of standalone tools, not workflows)
 
 ## Notes on autoconverting
