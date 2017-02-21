@@ -651,8 +651,10 @@ def process_file(file, args):
         else:
             os.mkdir(args.directory)
             os.chdir(args.directory)
+    else:
+        args.directory = os.getcwd()
     if not args.no_folder:
-        cwl_directory = os.path.basename(os.path.abspath(file)).replace('.wdl', '')
+        cwl_directory = os.path.join(args.directory, os.path.basename(os.path.abspath(file)).replace('.wdl', ''))
         os.mkdir(cwl_directory)
         printstuff(k, cwl_directory, args.quiet)
     else:
