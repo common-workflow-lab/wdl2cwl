@@ -3,124 +3,49 @@
 
 {
     "cwlVersion": "v1.0",
-    "steps": [
-        {
-            "out": [
-                "inputSamples"
-            ],
-            "id": "read_tsv_1",
-            "in": {
-                "infile": "inputSamplesFile"
-            },
-            "run": "read_tsv.cwl"
-        },
-        {
-            "scatterMethod": "dotproduct",
-            "in": [
-                {
-                    "valueFrom": "$(self[1])",
-                    "id": "bamFile",
-                    "source": "#read_tsv_1/inputSamples"
-                },
-                {
-                    "valueFrom": "$(self[2])",
-                    "id": "bamIndex",
-                    "source": "#read_tsv_1/inputSamples"
-                },
-                {
-                    "valueFrom": "$(self[0])",
-                    "id": "sampleName",
-                    "source": "#read_tsv_1/inputSamples"
-                },
-                {
-                    "id": "RefFasta",
-                    "source": "refFasta"
-                },
-                {
-                    "id": "GATK",
-                    "source": "gatk"
-                },
-                {
-                    "id": "RefIndex",
-                    "source": "refIndex"
-                },
-                {
-                    "id": "RefDict",
-                    "source": "refDict"
-                }
-            ],
-            "run": "HaplotypeCallerERC.cwl",
-            "out": [
-                {
-                    "id": "GVCF"
-                }
-            ],
-            "scatter": [
-                "bamFile",
-                "bamIndex",
-                "sampleName"
-            ],
-            "id": "HaplotypeCallerERC"
-        },
-        {
-            "out": [
-                {
-                    "id": "rawVCF"
-                }
-            ],
-            "id": "GenotypeGVCFs",
-            "in": [
-                {
-                    "id": "GVCFs",
-                    "source": "HaplotypeCallerERC/GVCF"
-                },
-                {
-                    "valueFrom": "$(\"CEUtrio\")",
-                    "id": "sampleName"
-                },
-                {
-                    "id": "RefFasta",
-                    "source": "refFasta"
-                },
-                {
-                    "id": "GATK",
-                    "source": "gatk"
-                },
-                {
-                    "id": "RefIndex",
-                    "source": "refIndex"
-                },
-                {
-                    "id": "RefDict",
-                    "source": "refDict"
-                }
-            ],
-            "run": "GenotypeGVCFs.cwl"
-        }
-    ],
     "inputs": [
         {
-            "id": "inputSamplesFile",
-            "type": "File"
+            "type": "File",
+            "id": "inputSamplesFile"
         },
         {
-            "id": "gatk",
-            "type": "File"
+            "type": "File",
+            "id": "gatk"
         },
         {
-            "id": "refFasta",
-            "type": "File"
+            "type": "File",
+            "id": "refFasta"
         },
         {
-            "id": "refIndex",
-            "type": "File"
+            "type": "File",
+            "id": "refIndex"
         },
         {
-            "id": "refDict",
-            "type": "File"
+            "type": "File",
+            "id": "refDict"
         }
     ],
-    "outputs": [],
+    "outputs": [
+        {
+            "type": "Any",
+            "id": "read_tsv_1_inputSamples",
+            "outputSource": "#read_tsv_1/inputSamples"
+        },
+        {
+            "type": {
+                "items": "File",
+                "type": "array"
+            },
+            "id": "HaplotypeCallerERC_GVCF",
+            "outputSource": "#HaplotypeCallerERC/GVCF"
+        },
+        {
+            "type": "File",
+            "id": "GenotypeGVCFs_rawVCF",
+            "outputSource": "#GenotypeGVCFs/rawVCF"
+        }
+    ],
+    "id": "jointCallingGenotypes",
     "requirements": [
         {
             "class": "InlineJavascriptRequirement"
@@ -132,6 +57,100 @@
             "class": "StepInputExpressionRequirement"
         }
     ],
-    "id": "jointCallingGenotypes",
+    "steps": [
+        {
+            "in": {
+                "infile": "inputSamplesFile"
+            },
+            "run": "read_tsv.cwl",
+            "id": "read_tsv_1",
+            "out": [
+                "inputSamples"
+            ]
+        },
+        {
+            "in": [
+                {
+                    "source": "#read_tsv_1/inputSamples",
+                    "valueFrom": "$(self[1])",
+                    "id": "bamFile"
+                },
+                {
+                    "source": "#read_tsv_1/inputSamples",
+                    "valueFrom": "$(self[2])",
+                    "id": "bamIndex"
+                },
+                {
+                    "source": "#read_tsv_1/inputSamples",
+                    "valueFrom": "$(self[0])",
+                    "id": "sampleName"
+                },
+                {
+                    "source": "refFasta",
+                    "id": "RefFasta"
+                },
+                {
+                    "source": "gatk",
+                    "id": "GATK"
+                },
+                {
+                    "source": "refIndex",
+                    "id": "RefIndex"
+                },
+                {
+                    "source": "refDict",
+                    "id": "RefDict"
+                }
+            ],
+            "scatterMethod": "dotproduct",
+            "id": "HaplotypeCallerERC",
+            "out": [
+                {
+                    "id": "GVCF"
+                }
+            ],
+            "scatter": [
+                "bamFile",
+                "bamIndex",
+                "sampleName"
+            ],
+            "run": "HaplotypeCallerERC.cwl"
+        },
+        {
+            "in": [
+                {
+                    "source": "HaplotypeCallerERC/GVCF",
+                    "id": "GVCFs"
+                },
+                {
+                    "valueFrom": "$(\"CEUtrio\")",
+                    "id": "sampleName"
+                },
+                {
+                    "source": "refFasta",
+                    "id": "RefFasta"
+                },
+                {
+                    "source": "gatk",
+                    "id": "GATK"
+                },
+                {
+                    "source": "refIndex",
+                    "id": "RefIndex"
+                },
+                {
+                    "source": "refDict",
+                    "id": "RefDict"
+                }
+            ],
+            "run": "GenotypeGVCFs.cwl",
+            "id": "GenotypeGVCFs",
+            "out": [
+                {
+                    "id": "rawVCF"
+                }
+            ]
+        }
+    ],
     "class": "Workflow"
 }

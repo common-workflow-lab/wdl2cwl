@@ -2,45 +2,35 @@
 # This tool description was generated automatically by wdl2cwl ver. 0.2
 
 {
-    "arguments": [
-        {
-            "valueFrom": "    java -jar $(inputs.GATK.path) \\        -T HaplotypeCaller \\        -ERC GVCF \\        -R $(inputs.RefFasta.path) \\        -I $(inputs.bamFile.path) \\        -o $(inputs.sampleName)_rawLikelihoods.g.vcf   ",
-            "shellQuote": false
-        }
-    ],
     "cwlVersion": "v1.0",
-    "baseCommand": [],
     "inputs": [
         {
-            "id": "GATK",
-            "type": "File"
-        },
-        {
-            "id": "RefFasta",
             "type": "File",
-                      "secondaryFiles": [
-            "^.dict",
-            ".fai"]
+            "id": "GATK"
         },
         {
-            "id": "RefIndex",
-            "type": "File"
+            "type": "File",
+            "id": "RefFasta"
         },
         {
-            "id": "RefDict",
-            "type": "File"
+            "type": "File",
+            "id": "RefIndex"
         },
         {
-            "id": "sampleName",
-            "type": "string"
+            "type": "File",
+            "id": "RefDict"
         },
         {
-            "id": "bamFile",
-            "type": "File"
+            "type": "string",
+            "id": "sampleName"
         },
         {
-            "id": "bamIndex",
-            "type": "File"
+            "type": "File",
+            "id": "bamFile"
+        },
+        {
+            "type": "File",
+            "id": "bamIndex"
         }
     ],
     "outputs": [
@@ -48,10 +38,11 @@
             "outputBinding": {
                 "glob": "$(inputs.sampleName)_rawLikelihoods.g.vcf"
             },
-            "id": "GVCF",
-            "type": "File"
+            "type": "File",
+            "id": "GVCF"
         }
     ],
+    "id": "HaplotypeCallerERC",
     "requirements": [
         {
             "class": "ShellCommandRequirement"
@@ -60,6 +51,12 @@
             "class": "InlineJavascriptRequirement"
         }
     ],
-    "id": "HaplotypeCallerERC",
+    "arguments": [
+        {
+            "shellQuote": false,
+            "valueFrom": "    java -jar $(inputs.GATK.path) \\        -T HaplotypeCaller \\        -ERC GVCF \\        -R $(inputs.RefFasta.path) \\        -I $(inputs.bamFile.path) \\        -o $(inputs.sampleName)_rawLikelihoods.g.vcf   "
+        }
+    ],
+    "baseCommand": [],
     "class": "CommandLineTool"
 }
