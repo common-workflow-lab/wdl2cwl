@@ -5,11 +5,12 @@ Generates a set of CWL files from a WDL workflow which can be executed with a CW
 
 
 ## Installation
-
-`pip install --process-dependency-links wdl2cwl`
-
-wdl2cwl depends on the fork of [pywdl](https://github.com/anton-khodak/pywdl), so `--process-dependency-links` option 
- is required.
+```
+git clone https://github.com/common-workflow-language/wdl2cwl.git
+cd wdl2cwl
+python setup.py install
+```
+PyPi package coming soon
 
 ## Usage: 
 
