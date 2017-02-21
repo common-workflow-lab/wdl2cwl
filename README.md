@@ -5,23 +5,27 @@ Generates a set of CWL files from a WDL workflow which can be executed with a CW
 
 
 ## Installation
-
-`pip install --process-dependency-links wdl2cwl`
-
-wdl2cwl depends on the fork of [pywdl](https://github.com/anton-khodak/pywdl), so `--process-dependency-links` option 
- is required.
+```
+git clone https://github.com/common-workflow-language/wdl2cwl.git
+cd wdl2cwl
+python setup.py install
+```
+PyPi package coming soon
 
 ## Usage: 
 
 Pass a wdl workflow or a directory with wdl files to wdl2cwl
 
-```wdl2cwl workflow.wdl```
+```wdl2cwl <workflow.wdl> | <directory> [options]```
 
 By default, a directory with a name of the wdl file will be created and all generated CWL files will be placed in that directory.
 
 Additional options
+
 `'-d', '--directory'` - Target directory to place CWL files
+
 `'-q', '--quiet'` - Do not print generated tools to stdout
+
 `--no-folder` - Do not create a separate folder for each CWL toolset (convenient whilst bulk conversion of standalone tools, not workflows)
 
 ## Notes on autoconverting
