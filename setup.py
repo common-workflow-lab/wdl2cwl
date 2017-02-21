@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 from wdl2cwl import __version__
 
 setup(name="wdl2cwl",
-      version=__version__,
+      version="0.2.1",
       description='Convertion from WDL workflow descriptions to CWL',
       author='Peter Amstutz, Anton Khodak',
       author_email='anton.khodak@ukr.net',

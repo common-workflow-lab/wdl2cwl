@@ -1,0 +1,2 @@
+include wdl2cwl/expression-tools/*
+include wdl2cwl/templates/*
