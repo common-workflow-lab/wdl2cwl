@@ -232,6 +232,8 @@ def handleRawCommand(item, context=None, **kwargs):
         result = '${' + body + 'return ' + s + '}'
     else:
         result = s
+    result = re.sub(r'\\\n\s*', '', result)
+    result = result.strip()
     result = result.replace('\n', '')
     context["arguments"] = [{"valueFrom": result, "shellQuote": False}]
 
