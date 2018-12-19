@@ -7,11 +7,14 @@ setup(name="wdl2cwl",
       author='Peter Amstutz, Anton Khodak',
       author_email='anton.khodak@ukr.net',
       url='https://github.com/common-workflow-language/wdl2cwl',
-      install_requires=['future', 'jinja2', 'wdl>=1.1.0'],
+      install_requires=[
+          'future',
+          'jinja2',
+          'wdl-parser'
+      ],
       packages=find_packages(),
       package_data={'wdl2cwl': ['templates/*', 'expression-tools/*']},
       include_package_data=True,
-      dependency_links=['http://github.com/anton-khodak/pywdl/tarball/master#egg=wdl-1.1.0'],
       entry_points={
           'console_scripts': [
               'wdl2cwl=wdl2cwl.main:main'

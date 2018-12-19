@@ -7,7 +7,7 @@ import os
 import re
 import sys
 
-import wdl.parser
+import wdl_parser
 from jinja2 import Environment, FileSystemLoader
 
 __version__ = '0.2'
@@ -29,8 +29,42 @@ typemap = {"Int": "int",
            "Boolean": "boolean"}
 
 
+def pick_symbol(item, *symbols):
+    """
+    Picks the first matching attribute from the provided item. Used mostly for multi-version compatibility
+    """
+    for symbol in symbols:
+        if symbol in item.attributes:
+            return item.attr(symbol)
+    raise Exception('None of the provided symbols were available attributes')
+
+
+def class_name(obj):
+    """
+    Return the object's class name as a string
+    """
+    return obj.__class__.__name__
+
+
+def find_asts(ast_root, name):
+    nodes = []
+    if class_name(ast_root) == 'AstList':
+        for node in ast_root:
+            nodes.extend(find_asts(node, name))
+    elif class_name(ast_root) == 'Ast':
+        if ast_root.name == name:
+            nodes.append(ast_root)
+        for attr_name, attr in ast_root.attributes.items():
+            nodes.extend(find_asts(attr, name))
+    return nodes
+
+
 def ihandle(i, **kw):
-    if isinstance(i, wdl.parser.Terminal):
+    """
+    Process a symbol. Terminals are converted into an appropriate Python representation, and nonterminals are processed
+    by the corresponding handleXXX function
+    """
+    if class_name(i) == 'Terminal':
         if i.str == "string":
             return '"%s"' % i.source_string
         elif i.str == "integer":
@@ -82,7 +116,7 @@ def handleTask(item, **kwargs):
             "outputs": []}
 
     filevars = kwargs.get("filevars", set())
-    for i in item.attr("declarations"):
+    for i in pick_symbol(item, "declarations", "sections"):
         # NO! declarations can be expressions of other inputs and thus must not be treated as file inputs
         tool["inputs"].append(ihandle(i, context=tool,
                                       assignments=kwargs.get("assignments", {}),
@@ -93,6 +127,15 @@ def handleTask(item, **kwargs):
                 filevars=filevars, **kwargs)
 
     return tool
+
+
+def handleInputDeclaration(item, **kwargs):
+    return handleDeclaration(item, **kwargs)
+    # def handleInputs(item, **kwargs):
+    #     for m in pick_symbol(item, "map", "inputs"):
+    #         ihandle(m, **kwargs)
+    #
+    # pass
 
 
 def handleWorkflow(item, **kwargs):
@@ -528,7 +571,7 @@ def copy_step_outputs_to_workflow_outputs(step, outputs, **kwargs):
 
 
 def handleInputs(item, **kwargs):
-    for m in item.attr("map"):
+    for m in pick_symbol(item, "map", "inputs"):
         ihandle(m, **kwargs)
 
 
@@ -593,15 +636,15 @@ main_template = env.get_template('cwltool.j2')
 expression_tools = []  # [(file, SUBSTITUTIONS)] // SUBSTITUTIONS = {'path/to/substitute', (term, sub)}
 
 
-def printstuff(wdl_code, directory=os.getcwd(), quiet=False):
+def printstuff(wdl_code, parser, directory=os.getcwd(), quiet=False):
     # Parse source code into abstract syntax tree
-    ast = wdl.parser.parse(wdl_code).ast()
+    ast = parser.parse(wdl_code).ast()
     # print(ast.dumps(indent=2))
 
     tasks = {}
 
     # Find all 'Task' ASTs
-    task_asts = wdl.find_asts(ast, 'Task')
+    task_asts = find_asts(ast, 'Task')
     for task_ast in task_asts:
         tool = ihandle(task_ast)
         # cwl.append(a)
@@ -609,7 +652,7 @@ def printstuff(wdl_code, directory=os.getcwd(), quiet=False):
         tasks[ihandle(task_ast.attr("name"))] = tool
 
     # Find all 'Workflow' ASTs
-    workflow_asts = wdl.find_asts(ast, 'Workflow')
+    workflow_asts = find_asts(ast, 'Workflow')
     for workflow_ast in workflow_asts:
         wf = ihandle(workflow_ast, tasks=tasks)
         export_tool(wf, directory, quiet)
@@ -658,14 +701,16 @@ def process_file(file, args):
     if not args.no_folder:
         cwl_directory = os.path.join(args.directory, os.path.basename(os.path.abspath(file)).replace('.wdl', ''))
         os.mkdir(cwl_directory)
-        printstuff(k, cwl_directory, args.quiet)
+        printstuff(k, args.parser, cwl_directory, args.quiet)
     else:
-        printstuff(k, directory=args.directory, quiet=args.quiet)
+        printstuff(k, args.parser, directory=args.directory, quiet=args.quiet)
 
 
 def main():
     parser = argparse.ArgumentParser(description='Convert a WDL workflow to CWL')
     parser.add_argument('workflow', help='a WDL workflow or a directory with WDL files')
+    parser.add_argument('--parser', choices=wdl_parser.parsers.values(), type=lambda key: wdl_parser.parsers[key],
+                        help='WDL version to use for parsing')
     parser.add_argument('-d', '--directory', help='Directory to store CWL files')
     parser.add_argument('-q', '--quiet', action='store_true', help='Do not print generated files to stdout')
     parser.add_argument('--no-folder', action='store_true', help='Do not create a separate folder for each toolset')

@@ -1,0 +1,3 @@
+[submodule "wdl"]
+	path = wdl
+	url = https://github.com/openwdl/wdl
