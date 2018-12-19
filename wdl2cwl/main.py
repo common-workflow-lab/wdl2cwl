@@ -131,11 +131,6 @@ def handleTask(item, **kwargs):
 
 def handleInputDeclaration(item, **kwargs):
     return handleDeclaration(item, **kwargs)
-    # def handleInputs(item, **kwargs):
-    #     for m in pick_symbol(item, "map", "inputs"):
-    #         ihandle(m, **kwargs)
-    #
-    # pass
 
 
 def handleWorkflow(item, **kwargs):
