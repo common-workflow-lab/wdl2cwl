@@ -1,3 +1,5 @@
+# Replaced by https://github.com/common-workflow-lab/wdl-cwl-translator
+
 Converter from the Broad Institute's Workflow Definition
 Language (WDL) to the Common Workflow Language.
 
